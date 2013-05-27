@@ -52,7 +52,7 @@ function parseConfig() {
     $config = require("$wd/packager/config.php");
     $myArgs = array();
     foreach ($config as $k => $v) {
-        if ($k == 'files') {
+        if ($k == 'files' || $k == 'repository') {
             continue;
         }
         $argk = "-";
@@ -74,6 +74,8 @@ function parseConfig() {
         $myArgs[] = $argValue;
     }
     $ret = array(
+        'name' => $config['name'],
+        'repository' => $config['repository'],
         'files' => $config['files'],
         'args' => $myArgs,
     );
@@ -100,6 +102,7 @@ function fpm() {
      */
     x("fpm ". implode(" \\\n", $myArgs['args']) ." \\\n-v $version \\\n". $myArgs['files']);
     x("mv $wd/*.deb $wd/packager/deb/");
+    x("scp packager/deb/". $myArgs['name'] ."_${version}_*.deb ". $myArgs['repository']);
 }
 $wd = trim(`pwd`);
 fpm();
