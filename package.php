@@ -173,14 +173,14 @@ function main() {
         foreach ($files as $k => $file) {
             $files[$k] = substr($file, 1);
         }
-        //if (file_exists($trigger_files_dir)) {
-            $script_dir = "/var/cache/deb/$name"; // note that this will be from '/' (root)
-            $generated_dir = "$target_dir/$include_dir";
-            x("mkdir -p $packager_root$script_dir");
-            $files = array_merge($files, array(substr($script_dir, 1)));
-            $prefix = '/';
-            $actions = generateBashScript($include_dir, $target_dir, $name, $prefix, $script_dir, $packager_root);
-        //}
+
+        $script_dir = "/var/cache/deb/$name"; // note that this will be from '/' (root)
+        $generated_dir = "$target_dir/$include_dir";
+        x("mkdir -p $packager_root$script_dir");
+        $files = array_merge($files, array(substr($script_dir, 1)));
+        $prefix = '/';
+        $actions = generateBashScript($include_dir, $target_dir, $name, $prefix, $script_dir, $packager_root);
+
         $package_args = implode(" \\\n", $package['args']);
         $afterinstall = "";
         if (!in_array('after-remove', $actions)) {
@@ -196,6 +196,12 @@ function main() {
             }
         }
         $files = implode(' ', $files);
+        $before_package = $package['before_package'];
+        if ($before_package && !file_exists("packager/$before_package")) {
+            e("Warning $before_package does not exist\n", 'red');
+        } elseif ($before_package) {
+            require_once("packager/$before_package");
+        }
         x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version \\\n$files");
         x("mv $wd/*.deb $wd/packager/deb/");
         x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
