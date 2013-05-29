@@ -49,44 +49,90 @@ function gitTag($version) {
 }
 function parseConfig() {
     global $config,$wd;
-    $config = require("$wd/packager/config.php");
-    $myArgs = array();
-    foreach ($config as $k => $v) {
-        if ($k == 'files' || $k == 'repository') {
-            continue;
-        }
-        $argk = "-";
-        if (strlen($k) > 1) {
-            $argk .= "-";
-        }
-        $argk .= $k;
-        if (is_array($v)) {
-            $argValue = "";
-            foreach ($v as $a) {
-                if (strlen($argValue) > 0) {
-                    $argValue .= ' ';
+    $configs = require("$wd/packager/config.php");
+    $rets = array();
+    foreach ($configs as $name => $config) {
+        $myArgs = array();
+        $user = trim(`whoami`);
+        $target_dir = '';
+        $before_package = false;
+        foreach ($config as $k => $v) {
+            if ($k == 'files' || $k == 'repository' 
+                    || $k == 'user' || $k == 'include_folder'
+                    || $k == 'target_dir' || $k == 'before-package') {
+                if ($k == 'user') {
+                    $user = $v;
+                } elseif ($k == 'before-package') {
+                    $before_package = $v; // path to php script to run before package
                 }
-                $argValue .= $argk ." '". $a ."'";
+                continue;
             }
-        } else {
-            $argValue = "$argk '$v'";
+            if ($k == 'C') {
+                $target_dir = $v;
+            }
+            $argk = "-";
+            if (strlen($k) > 1) {
+                $argk .= "-";
+            }
+            $argk .= $k;
+            if (is_array($v)) {
+                $argValue = "";
+                foreach ($v as $a) {
+                    if (strlen($argValue) > 0) {
+                        $argValue .= ' ';
+                    }
+                    $argValue .= $argk ." '". $a ."'";
+                }
+            } else {
+                $argValue = "$argk '$v'";
+            }
+            $myArgs[] = $argValue;
         }
-        $myArgs[] = $argValue;
+        $rets[$name] = array(
+            'target_dir' => $target_dir,
+            'repository' => $config['repository'],
+            //'prefix' => $config['prefix'],
+            'files' => $config['files'],
+            'args' => $myArgs,
+            'user' => $user,
+            'before_package' => $before_package,
+        );
     }
-    $ret = array(
-        'name' => $config['name'],
-        'repository' => $config['repository'],
-        'files' => $config['files'],
-        'args' => $myArgs,
-    );
-    d($ret);
-    return $ret;
+    d($rets);
+    return $rets;
 }
-function fpm() {
+function getIncludeDir() {
+    return 'deb_install_'. sha1(time());
+}
+function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $packager_root) {
+    $actions = array(
+        'after-install',
+        'before-install',
+        'after-remove',
+        'before-remove',
+    );
+    $actions_todo = array();
+    $script  = "#!/bin/bash\n";
+    $num_dotdot = count(explode('/', $prefix)); // str_repeat('../', $num_dotdot) .
+    foreach ($actions as $action) {
+        $phpfile = "$dir/$action.php";
+        //echo "exists? packager/include_dir/$phpfile\n";
+        if (file_exists("packager/$action.php")) {
+            echo "Adding action: $action ...\n";
+            x("cp packager/$action.php $packager_root$script_dir");
+            $script  = "#!/bin/bash\n";
+            $script .= "/usr/bin/php $script_dir/$action.php\n";
+            file_put_contents("packager/$action.bash", $script);
+            $actions_todo[] = $action;
+        }
+    }
+    return $actions_todo;
+}
+function main() {
     global $wd;
     $version = incVersion($wd .'/version.txt');
     gitTag($version);
-    $myArgs = parseConfig();
+    $packages = parseConfig();
 
     /*
     x("fpm -d tomcat7 \
@@ -100,9 +146,58 @@ function fpm() {
         -n 'landcare-phototool' \
         -C target/ --prefix=/var/lib/tomcat7/webapps $wd/target/landcare-azimuth-map-1.0-SNAPSHOT.war");
      */
-    x("fpm ". implode(" \\\n", $myArgs['args']) ." \\\n-v $version \\\n". $myArgs['files']);
-    x("mv $wd/*.deb $wd/packager/deb/");
-    x("scp packager/deb/". $myArgs['name'] ."_${version}_*.deb ". $myArgs['repository']);
+    foreach ($packages as $name => $package) {
+        $files = $package['files'];
+        if (!is_array($files)) {
+            //$files = array($files);
+            echo "files must be an array!\n";
+            return false;
+        }
+        $include_dir = $name; //getIncludeDir();
+        $trigger_files_dir = 'packager/include_dir';
+        $target_dir = $package['target_dir'];
+        $packager_root = "packager/root";
+        foreach ($files as $k => $file) {
+            $files[$k] = substr($file, 1);
+        }
+        if (file_exists($trigger_files_dir)) {
+            $script_dir = "/var/cache/deb/$name"; // note that this will be from '/' (root)
+            $generated_dir = "$target_dir/$include_dir";
+            x("mkdir -p $packager_root$script_dir");
+            $files = array_merge($files, array(substr($script_dir, 1)));
+            $prefix = '/';
+            $actions = generateBashScript($include_dir, $target_dir, $name, $prefix, $script_dir, $packager_root);
+        }
+        /*
+        if (isset($package['before_package'])) {
+            $before_package = 'packager/'. $package['before_package'];
+            if (file_exists($before_package)) {
+                require_once($before_package);
+            }
+        }
+         */
+        $package_args = implode(" \\\n", $package['args']);
+        $afterinstall = "";
+        /*
+        if (file_exists($include_dir .'/afterinstall.php')) {
+            $script = dirname(__FILE__) .'/afterinstall.bash';
+            $package_args .= ' --after-install '. $script;
+        }
+         */
+        foreach ($actions as $action) {
+            $package_args .= " --$action packager/$action.bash \\\n";
+        }
+        foreach ($files as $kf => $file) {
+            x("mkdir -p $packager_root". dirname($file));
+            if ($kf) {
+                x("cp $kf $packager_root$file");
+            }
+        }
+        $files = implode(' ', $files);
+        x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version \\\n$files");
+        x("mv $wd/*.deb $wd/packager/deb/");
+        x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
+    }
 }
 $wd = trim(`pwd`);
-fpm();
+main();
