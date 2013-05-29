@@ -126,7 +126,20 @@ function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $pac
             $actions_todo[] = $action;
         }
     }
+    $ar = 'packager/after-remove.bash';
+    $rm_command = "\n\nrm -rf $script_dir";
+    if (file_exists($ar)) {
+        $handle = fopen($ar, 'a');
+        fwrite($handle, $rm_command);
+    } else {
+        file_put_contents($ar, "#!/bin/bash". $rm_command);
+    }
+
     return $actions_todo;
+}
+function cleanup() {
+    x("rm -rf packager/root");
+    x("rm -rf packager/*.bash");
 }
 function main() {
     global $wd;
@@ -160,43 +173,33 @@ function main() {
         foreach ($files as $k => $file) {
             $files[$k] = substr($file, 1);
         }
-        if (file_exists($trigger_files_dir)) {
+        //if (file_exists($trigger_files_dir)) {
             $script_dir = "/var/cache/deb/$name"; // note that this will be from '/' (root)
             $generated_dir = "$target_dir/$include_dir";
             x("mkdir -p $packager_root$script_dir");
             $files = array_merge($files, array(substr($script_dir, 1)));
             $prefix = '/';
             $actions = generateBashScript($include_dir, $target_dir, $name, $prefix, $script_dir, $packager_root);
-        }
-        /*
-        if (isset($package['before_package'])) {
-            $before_package = 'packager/'. $package['before_package'];
-            if (file_exists($before_package)) {
-                require_once($before_package);
-            }
-        }
-         */
+        //}
         $package_args = implode(" \\\n", $package['args']);
         $afterinstall = "";
-        /*
-        if (file_exists($include_dir .'/afterinstall.php')) {
-            $script = dirname(__FILE__) .'/afterinstall.bash';
-            $package_args .= ' --after-install '. $script;
+        if (!in_array('after-remove', $actions)) {
+            $actions[] = 'after-remove';
         }
-         */
         foreach ($actions as $action) {
             $package_args .= " --$action packager/$action.bash \\\n";
         }
         foreach ($files as $kf => $file) {
-            x("mkdir -p $packager_root". dirname($file));
+            x("mkdir -p $packager_root/". dirname($file));
             if ($kf) {
-                x("cp $kf $packager_root$file");
+                x("cp $kf $packager_root/$file");
             }
         }
         $files = implode(' ', $files);
         x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version \\\n$files");
         x("mv $wd/*.deb $wd/packager/deb/");
         x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
+        cleanup();
     }
 }
 $wd = trim(`pwd`);
