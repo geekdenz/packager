@@ -9,7 +9,7 @@ Dependencies
 ============
 
   - PHP 5 (cli)
-  - FPM @ git://github.com/jordansissel/fpm.git
+  - FPM @ http://github.com/jordansissel/fpm.git
 
 Usage
 =====
