@@ -14,6 +14,9 @@ Dependencies
 Usage
 =====
 
+Since version 0.1.2 packager is self packaged and 
+can be downloaded here: https://github.com/geekdenz/packager/tree/master/packager/deb
+
 Clone into directory (e.g. /usr/local/packager):
 
     git clone git@github.com:geekdenz/packager.git /usr/local/packager
