@@ -158,7 +158,7 @@ function checkFilesThere() {
     return true;
 }
 function printUsage() {
-    e(file_get_contents(dirname(__FILE__) .'/README.md'));
+    echo file_get_contents(dirname(__FILE__) .'/USAGE.md') ."\n";
 }
 function main() {
     global $wd;
