@@ -137,15 +137,39 @@ function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $pac
 
     return $actions_todo;
 }
+function init() {
+    x("mkdir -p packager/deb");
+}
 function cleanup() {
     x("rm -rf packager/root");
     x("rm -rf packager/*.bash");
 }
+function checkFilesThere() {
+    global $wd;
+    $requirements = array(
+        'packager',
+        'packager/config.php',
+    );
+    foreach ($requirements as $req) {
+        if (!file_exists($req)) {
+            return false;
+        }
+    }
+    return true;
+}
+function printUsage() {
+    e(file_get_contents(dirname(__FILE__) .'/README.md'));
+}
 function main() {
     global $wd;
+    if (!checkFilesThere()) {
+        printUsage();
+        die();
+    }
     $version = incVersion($wd .'/version.txt');
     gitTag($version);
     $packages = parseConfig();
+    init();
 
     /*
     x("fpm -d tomcat7 \
@@ -182,7 +206,6 @@ function main() {
         $actions = generateBashScript($include_dir, $target_dir, $name, $prefix, $script_dir, $packager_root);
 
         $package_args = implode(" \\\n", $package['args']);
-        $afterinstall = "";
         if (!in_array('after-remove', $actions)) {
             $actions[] = 'after-remove';
         }
@@ -191,8 +214,23 @@ function main() {
         }
         foreach ($files as $kf => $file) {
             x("mkdir -p $packager_root/". dirname($file));
-            if ($kf) {
-                x("cp $kf $packager_root/$file");
+            if (is_string($kf)) { // && $kf != 'packager') {}
+                $ends_with_slash = substr($file, -1) == '/';
+                if (is_dir($kf) || $ends_with_slash) {
+                    x("mkdir -p $packager_root/$file");
+                } else {
+                    x("mkdir -p $packager_root/". dirname($file));
+                }
+                $files_from = glob($kf);
+                //d($files_from);
+                $files_from = array_filter($files_from, create_function('$a', 'return $a != "packager";'));
+                d($files_from);
+                $sources = implode(' ', $files_from);
+                if ($ends_with_slash) {
+                    x("cp -Rp $sources $packager_root/$file");
+                } elseif (count($files_from) == 1) {
+                    x("cp -Rp $kf $packager_root/$file"); 
+                }
             }
         }
         $files = implode(' ', $files);
