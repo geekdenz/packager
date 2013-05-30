@@ -2,8 +2,11 @@ Packager
 ========
 
 Debian packager for simple deployment of any app.
-This can be used to deploy custom applications easily to debian based .deb packages.
-Other distributions should be possible by changing the code a bit, so please fork if you can.
+This can be used to deploy custom applications 
+easily to debian based .deb packages.
+Other distributions should be possible by 
+changing the type ('t') in the configuration
+file (config.php).
 
 Dependencies
 ============
@@ -14,8 +17,20 @@ Dependencies
 Usage
 =====
 
-Since version 0.1.2 packager is self packaged and 
-can be downloaded here: https://github.com/geekdenz/packager/tree/master/packager/deb
+Since version 0.1.2 packager is self packaged and can be 
+downloaded here:
+https://github.com/geekdenz/packager/tree/master/packager/deb
+You can then install it by running
+
+    sudo dpkg -i php-packager_0.1.2_amd64.deb
+    
+If you do not like it, it can be easily removed by calling
+
+    sudo dpkg -r php-packager
+    
+We do not have a ppa for this yet, because we don't have a 
+public repository. However, this should be easy to do in the 
+future.
 
 Clone into directory (e.g. /usr/local/packager):
 
@@ -35,7 +50,8 @@ In a project you can then initiate a sub directory called packager:
     cd /your/cool/project
     mkdir packager
     
-In that directory you need at least one file called config.php. Ensure it has valid PHP code in it. E.g.:
+In that directory you need at least one file called config.php. Ensure 
+it has valid PHP code in it. E.g.:
 
     <?php
     return array(
@@ -65,3 +81,42 @@ In that directory you need at least one file called config.php. Ensure it has va
         ),
          */
     );
+    
+You can add any PHP code in your 'packager/after-install.php' and 
+'packager/before-remove.php' scripts. However, all code used has
+to be in those files at this stage. A nice extension would be to 
+make includes and requires possible, but it has been kept simple
+for now. At least you can add your DB handling things in there a 
+bit nicer than with just bash scripting.
+
+
+Why PHP?
+========
+
+You may wonder: "Why use PHP for deployment?".
+We wondered also why to use something else such as Ruby or Python.
+PHP is one of the easiest languages to learn in my opinion and is
+powerful enough, with its OO features, that one can create quite
+extensive deployment mechanisms. Calling shell commands is also
+trivial with PHP with e.g. 
+
+    `ls -la`;
+
+one can list the contents of the current folder through the shell.
+
+PHP doesn't have difficult to understand constructs such as
+
+    if [ "$variable" -eq "Hello" ]
+    then
+      echo "do something"
+    fi
+    
+for simple ifs. It is much easier to remember the syntax as it is
+very similar to C, Java and JavaScript.
+
+It is a scripting languages and can be developed quickly.
+
+It is very popular and well-known.
+
+I plan to use it for PHP applications and PHP seems to be a sensible
+choice for that.
