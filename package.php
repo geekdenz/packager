@@ -126,7 +126,15 @@ function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $pac
             $actions_todo[] = $action;
         }
     }
-    $ar = 'packager/'. $name .'/after-remove.bash';
+    $ar_dir = 'packager/'. $name;
+    $is_dir = is_dir($ar_dir);
+    $is_file = file_exists($ar_dir);
+    if ($is_file && !$is_dir) {
+        die("$ar_dir must be a directory");
+    } elseif (!$is_file) {
+        x("mkdir -p $ar_dir");
+    }
+    $ar = $ar_dir .'/after-remove.bash';
     $rm_command = "\n\nrm -rf $script_dir";
     if (file_exists($ar)) {
         $handle = fopen($ar, 'a');
@@ -243,7 +251,7 @@ function main() {
         x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version \\\n$files");
         x("mv $wd/*.deb $wd/packager/deb/");
         x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
-        cleanup();
+        //cleanup();
     }
 }
 $wd = trim(`pwd`);
