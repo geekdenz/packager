@@ -115,18 +115,18 @@ function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $pac
     $script  = "#!/bin/bash\n";
     $num_dotdot = count(explode('/', $prefix)); // str_repeat('../', $num_dotdot) .
     foreach ($actions as $action) {
-        $phpfile = "$dir/$action.php";
+        //$phpfile = "$dir/$action.php";
         //echo "exists? packager/include_dir/$phpfile\n";
-        if (file_exists("packager/$action.php")) {
+        if (file_exists("packager/$name/$action.php")) {
             echo "Adding action: $action ...\n";
-            x("cp packager/$action.php $packager_root$script_dir");
+            x("cp packager/$name/$action.php $packager_root$script_dir");
             $script  = "#!/bin/bash\n";
             $script .= "/usr/bin/php $script_dir/$action.php\n";
-            file_put_contents("packager/$action.bash", $script);
+            file_put_contents("packager/$name/$action.bash", $script);
             $actions_todo[] = $action;
         }
     }
-    $ar = 'packager/after-remove.bash';
+    $ar = 'packager/'. $name .'/after-remove.bash';
     $rm_command = "\n\nrm -rf $script_dir";
     if (file_exists($ar)) {
         $handle = fopen($ar, 'a');
@@ -210,7 +210,7 @@ function main() {
             $actions[] = 'after-remove';
         }
         foreach ($actions as $action) {
-            $package_args .= " --$action packager/$action.bash \\\n";
+            $package_args .= " --$action packager/$name/$action.bash \\\n";
         }
         foreach ($files as $kf => $file) {
             x("mkdir -p $packager_root/". dirname($file));
