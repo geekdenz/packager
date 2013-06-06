@@ -4,6 +4,7 @@ return array(
         'before-package' => 'before-package.php', // gets executed after the setup and before the actual package build
         'depends' => array( // list of dependencies
             'php5-cli',
+            'rubygems',
         ),
         'description' => 'This package includes the php-packager application for easy packaging of software to deploy.',
         'files' => array(
