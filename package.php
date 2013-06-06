@@ -251,7 +251,11 @@ function main() {
         x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version \\\n$files");
         x("mv $wd/*.deb $wd/packager/deb/");
         x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
-        //cleanup();
+        $after_package = "packager/$name/after-package.php";
+        if (file_exists($after_package)) {
+            require_once($after_package);//sudo puppet agent -t
+        }
+        cleanup();
     }
 }
 $wd = trim(`pwd`);
