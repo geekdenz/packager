@@ -13,3 +13,12 @@ The package can be found in packager/deb with version etc. Git tags are automati
 and the version can be customized by editing 'version.txt'.
 
 More information can be found @ https://github.com/geekdenz/packager or in README.md.
+
+Command Line Arguments
+======================
+
+-g          turn on git tagging of version and version increment, equivalent to -it
+-t          turn on git tagging
+-i          turn on version increment
+-d <action> delete action from the actions to do, i.e. before-package, after-package etc
+-r          release, upload to repository given in config

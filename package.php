@@ -3,6 +3,67 @@
 $debug = false;
 include 'Colors.php';
 $colors = new Colors();
+
+$dotag = false; // tag code with version, for release
+$doinc = false; // increment version number
+$dorelease = false; // upload to repository
+$docleanup = false; // cleanup after packaging
+$doactions = array(
+    'after-install' => true,
+    'before-install' => true,
+    'after-remove' => true,
+    'before-remove' => true,
+    'before-package' => true,
+    'after-package' => true,
+);
+
+foreach ($argv as $k => $arg) {
+    if ($arg[0] != '-') {
+        continue;
+    }
+    if ($arg == '--help') {
+        printUsage();
+        die();
+    }
+    if ($arg[0] == '-' && $arg[1] == '-') {
+        printUsage();
+        die();
+    } else if ($arg[0] == '-') {
+        for ($i = 0, $leni = strlen($arg); ++$i < $leni;) {
+            switch ($arg[$i]) {
+                default:
+                case '-':
+                    break; //TODO
+                case 'g':
+                    $dotag = true;
+                    $doinc = true;
+                    break;
+                case 'i':
+                    $doinc = true;
+                    break;
+                case 't':
+                    $dotag = true;
+                    break;
+                case 'r':
+                    $dorelease = true;
+                    break;
+                case 'c':
+                    $docleanup = true;
+                    break;
+                case 'd':
+                    $action = $argv[$k+1];
+                    $doactions[$action] = false;
+                    break;
+            }
+        }
+    }
+}
+function dbool($booleanValue) {
+    global $debug;
+    if (!$debug) return;
+    echo "" . ($booleanValue ? "true\n" : "false\n");
+}
+
 function e($str, $color = 'white', $bg_color = 'black') {
     global $colors;
     echo $colors->getColoredString($str ."\n", $color, $bg_color);
@@ -42,13 +103,17 @@ function incVersion($filename) {
     return $newVersion;
 }
 function gitTag($version) {
+    global $debug;
     // git tag -a v<version> -m "version <version>"
     // git tag -a v0.2 -m "version 0.2"
-    $cmd = "git tag -a v$version -m 'version $version'";
-    x($cmd);
+    if (!$debug) {
+        x("git commit -am 'automatic commit: package.php version v$version'");
+        $cmd = "git tag -a v$version -m 'version $version'";
+        x($cmd);
+    }
 }
 function parseConfig() {
-    global $config,$wd;
+    global $config,$wd,$doactions;
     $configs = require("$wd/packager/config.php");
     $rets = array();
     foreach ($configs as $name => $config) {
@@ -62,7 +127,7 @@ function parseConfig() {
                     || $k == 'target_dir' || $k == 'before-package') {
                 if ($k == 'user') {
                     $user = $v;
-                } elseif ($k == 'before-package') {
+                } elseif ($k == 'before-package' && $doactions['before-package']) {
                     $before_package = $v; // path to php script to run before package
                 }
                 continue;
@@ -105,6 +170,7 @@ function getIncludeDir() {
     return 'deb_install_'. sha1(time());
 }
 function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $packager_root) {
+    global $doactions;
     $actions = array(
         'after-install',
         'before-install',
@@ -115,6 +181,9 @@ function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $pac
     $script  = "#!/bin/bash\n";
     $num_dotdot = count(explode('/', $prefix)); // str_repeat('../', $num_dotdot) .
     foreach ($actions as $action) {
+        if (!$doactions[$action]) {
+            continue;
+        }
         //$phpfile = "$dir/$action.php";
         //echo "exists? packager/include_dir/$phpfile\n";
         if (file_exists("packager/$name/$action.php")) {
@@ -169,13 +238,19 @@ function printUsage() {
     echo file_get_contents(dirname(__FILE__) .'/USAGE.md') ."\n";
 }
 function main() {
-    global $wd;
+    global $wd,$debug,$dotag,$doinc,$dorelease,$docleanup,$doactions;
     if (!checkFilesThere()) {
         printUsage();
         die();
     }
-    $version = incVersion($wd .'/version.txt');
-    gitTag($version);
+    if ($doinc) {
+        $version = incVersion($wd .'/version.txt');
+    } else {
+        $version = file_get_contents($wd.'/version.txt');
+    }
+    if ($dotag) {
+        gitTag($version);
+    }
     $packages = parseConfig();
     init();
 
@@ -248,14 +323,18 @@ function main() {
         } elseif ($before_package) {
             require_once("packager/$before_package");
         }
-        x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version \\\n$files");
+        x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version .");
         x("mv $wd/*.deb $wd/packager/deb/");
-        x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
+        if ($dorelease) {
+            x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
+        }
         $after_package = "packager/$name/after-package.php";
-        if (file_exists($after_package)) {
+        if ($doactions['after-package'] && file_exists($after_package) && !$debug) {
             require_once($after_package);//sudo puppet agent -t
         }
-        cleanup();
+        if ($docleanup) {
+            cleanup();
+        }
     }
 }
 $wd = trim(`pwd`);
