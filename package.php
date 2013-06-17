@@ -323,7 +323,7 @@ function main() {
         } elseif ($before_package) {
             require_once("packager/$before_package");
         }
-        x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v $version .");
+        x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v ". trim($version) ." .");
         x("mv $wd/*.deb $wd/packager/deb/");
         if ($dorelease) {
             x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
