@@ -205,10 +205,7 @@ function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $pac
     }
     $ar = $ar_dir .'/after-remove.bash';
     $rm_command = "\n\nrm -rf $script_dir";
-    if (file_exists($ar)) {
-        $handle = fopen($ar, 'a');
-        fwrite($handle, $rm_command);
-    } else {
+    if (!file_exists($ar)) {
         file_put_contents($ar, "#!/bin/bash". $rm_command);
     }
 
