@@ -50,6 +50,9 @@ In a project you can then initiate a sub directory called packager:
     cd /your/cool/project
     mkdir packager
     
+Make sure you have a file called /your/cool/project/version.txt in place with the content of '0.1.0'
+for example, because packager.php assumes it is there!
+
 In that directory you need at least one file called config.php. Ensure 
 it has valid PHP code in it. E.g.:
 
