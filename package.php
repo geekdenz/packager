@@ -1,5 +1,8 @@
 #!/usr/bin/php
 <?php
+/*
+vim:ts=4:softtabstop=4:shiftwidth=4:expandtab
+*/
 $debug = false;
 include 'Colors.php';
 $colors = new Colors();
@@ -212,6 +215,9 @@ function generateBashScript($dir, $target_dir, $name, $prefix, $script_dir, $pac
     return $actions_todo;
 }
 function init() {
+    if (!file_exists("version.txt") && file_exists("packager/config.php")) {
+        file_put_contents("version.txt", "0.0.0");
+    }
     x("mkdir -p packager/deb");
 }
 function cleanup() {
