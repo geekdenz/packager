@@ -5,6 +5,7 @@ return array(
         'depends' => array( // list of dependencies
             'php5-cli',
             'rubygems',
+            'ruby1.9.1-dev',
         ),
         'description' => 'This package includes the php-packager application for easy packaging of software to deploy.',
         'files' => array(
