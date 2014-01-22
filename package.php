@@ -245,6 +245,7 @@ function main() {
     } else {
         $version = file_get_contents($wd.'/version.txt');
     }
+    $version = trim($version);
     if ($dotag) {
         gitTag($version);
     }
@@ -320,10 +321,10 @@ function main() {
         } elseif ($before_package) {
             require_once("packager/$before_package");
         }
-        x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v ". trim($version) ." .");
+        x("fpm -C packager/root --prefix / -n $name $package_args \\\n-v ". $version ." .");
         x("mv $wd/*.deb $wd/packager/deb/");
         if ($dorelease) {
-            x("scp packager/deb/". $name ."_${version}_*.deb ". $package['user'] .'@'. $package['repository']);
+            x("scp packager/deb/". $name ."_". $version ."_*.deb ". $package['user'] .'@'. $package['repository']);
         }
         $after_package = "packager/$name/after-package.php";
         if ($doactions['after-package'] && file_exists($after_package) && !$debug) {
